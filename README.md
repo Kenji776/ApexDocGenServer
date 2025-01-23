@@ -50,7 +50,7 @@ The server listens on port 3500 by default. You can change the port by setting t
 
 ## Formatting Your Apex Code for ApexDocs
 
-To get the best output from the ApexDocs package, format your Apex code using the Javadoc style for class and method documentation. Below is a basic example:
+To get the best output from the ApexDocs package, format your Apex code using the Javadoc style for class and method documentation. Below is a basic example, see https://github.com/cesarParra/apexdocs/wiki/2.-%F0%9F%93%96-Documenting-Apex-code for more in depth explanations.
 
 ### Example Apex Class with Documentation
 ```apex
