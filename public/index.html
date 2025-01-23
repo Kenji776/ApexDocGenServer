@@ -99,7 +99,24 @@
         footer a:hover {
             text-decoration: underline;
         }
+        /* Base link styles */
+        a {
+            color: #4CAF50; /* Unvisited link color - light green */
+            text-decoration: none; /* Remove underline for cleaner look */
+            font-weight: bold;
+            transition: color 0.3s ease; /* Smooth transition effect */
+        }
 
+        /* Visited link styles */
+        a:visited {
+            color: #b2ffb2; /* Visited link color - lighter green */
+        }
+
+        /* Hover and focus styles */
+        a:hover, a:focus {
+            color: #45a049; /* Slightly darker green for hover/focus */
+            text-decoration: underline; /* Add underline on hover for better visibility */
+        }
 
     </style>
 </head>
@@ -112,6 +129,7 @@
             
 This utility simplifies the process of documenting Salesforce Apex classes and their associated metadata. By uploading your .cls files along with their .cls-meta.xml counterparts, the tool generates detailed Markdown documentation. It then converts the Markdown files into structured HTML pages, complete with a customizable theme, making it easy to review and share your Apex class documentation. The final output is packaged as a ZIP file, ready for download
         </p>
+        <p> See <a href="https://github.com/cesarParra/apexdocs/wiki/2.-%F0%9F%93%96-Documenting-Apex-code">the wiki</a> for formatting info</p>
         <form id="uploadForm">
             <input type="file" name="files" id="fileInput" multiple />
             <br />
