@@ -167,7 +167,7 @@ This utility simplifies the process of documenting Salesforce Apex classes and t
             const formData = new FormData(uploadForm);
 
             // Show "Uploading" spinner
-            outputDiv.innerHTML = '<div class="spinner"></div>Uploading...';
+            outputDiv.innerHTML = '<div class="spinner"></div>Uploading<br/>(Be patient, it can take a while)...';
 
             try {
                 const response = await fetch('/upload', {
@@ -187,7 +187,7 @@ This utility simplifies the process of documenting Salesforce Apex classes and t
                 // Show styled download link
                 outputDiv.innerHTML = `
                     <a href="${data.downloadLink}" class="download-link" download>
-                        Download Processed File
+                        Download Code Documentation
                     </a>`;
             } catch (error) {
                 console.error('Error:', error);
@@ -202,7 +202,6 @@ This utility simplifies the process of documenting Salesforce Apex classes and t
             <a href="https://github.com/cesarParra/apexdocs" target="_blank" style="color: #4CAF50; text-decoration: none;">
                 ApexDocs by César Parra
             </a>. 
-            Thank you for your contributions to the Salesforce community!
         </p>
     </footer>
 </body>
