@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex File Uploader</title>
+    <style>
+        body {
+            background-color: #2c2f3a;
+            color: #ffffff;
+            font-family: 'Roboto', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .uploader {
+            background: #3a3d4e;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.4);
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+            padding: 5px;
+            border: 1px solid #555;
+            border-radius: 5px;
+            background: #444;
+            color: #fff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .output {
+            margin-top: 20px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .download-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s, transform 0.2s;
+        }
+        .download-link:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        footer {
+            position: absolute;
+            bottom: 5px;
+            margin-top: 40px;
+            padding: 10px;
+            text-align: center;
+            color: #ffffff;
+            font-size: 0.9em;
+            background-color: #292a3e;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="uploader">
+        <h1>Apex Code Documentation Tool</h1>
+
+        <h3>What Does This Utility Do?</h3>
+        <p style="text-align:left">
+            
+This utility simplifies the process of documenting Salesforce Apex classes and their associated metadata. By uploading your .cls files along with their .cls-meta.xml counterparts, the tool generates detailed Markdown documentation. It then converts the Markdown files into structured HTML pages, complete with a customizable theme, making it easy to review and share your Apex class documentation. The final output is packaged as a ZIP file, ready for download
+        </p>
+        <form id="uploadForm">
+            <input type="file" name="files" id="fileInput" multiple />
+            <br />
+            <button type="submit">Upload</button>
+        </form>
+        <div class="output" id="output"></div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const outputDiv = document.getElementById('output');
+
+        // Validate file extensions and pairing
+        function validateFiles(files) {
+            const clsFiles = new Set();
+            const metaFiles = new Set();
+
+            for (const file of files) {
+                if (file.name.endsWith('.cls')) {
+                    clsFiles.add(file.name.replace('.cls', ''));
+                } else if (file.name.endsWith('.cls-meta.xml')) {
+                    metaFiles.add(file.name.replace('.cls-meta.xml', ''));
+                } else {
+                    return { valid: false, message: `Invalid file type: ${file.name}` };
+                }
+            }
+
+            for (const cls of clsFiles) {
+                if (!metaFiles.has(cls)) {
+                    return { valid: false, message: `Missing metadata file for: ${cls}.cls` };
+                }
+            }
+
+            return { valid: true };
+        }
+
+        uploadForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const files = fileInput.files;
+            if (files.length === 0) {
+                outputDiv.innerHTML = "No files selected.";
+                return;
+            }
+
+            const validation = validateFiles(files);
+            if (!validation.valid) {
+                outputDiv.innerHTML = `<span style="color: red;">Error: ${validation.message}</span>`;
+                return;
+            }
+
+            const formData = new FormData(uploadForm);
+
+            // Show "Uploading" spinner
+            outputDiv.innerHTML = '<div class="spinner"></div>Uploading...';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+
+                // Show "Processing" spinner
+                outputDiv.innerHTML = '<div class="spinner"></div>Processing...';
+
+                const data = await response.json();
+
+                // Show styled download link
+                outputDiv.innerHTML = `
+                    <a href="${data.downloadLink}" class="download-link" download>
+                        Download Processed File
+                    </a>`;
+            } catch (error) {
+                console.error('Error:', error);
+                outputDiv.innerHTML = '<span style="color: red;">An error occurred during file upload.</span>';
+            }
+        });
+    </script>
+
+    <footer>
+        <p>
+            Written by Kenji776. This utility leverages the incredible work of 
+            <a href="https://github.com/cesarParra/apexdocs" target="_blank" style="color: #4CAF50; text-decoration: none;">
+                ApexDocs by César Parra
+            </a>. 
+            Thank you for your contributions to the Salesforce community!
+        </p>
+    </footer>
+</body>
+</html>

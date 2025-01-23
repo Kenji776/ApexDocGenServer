@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>uploads\1737669801398_ff5pk3ibl3c\markdown\attendancerostering\AttendanceUtilities.html</title>
+  <link rel="stylesheet" href="markdown8">
+</head>
+<body><link rel="stylesheet" type="text/css" href="markdown8.css" id="_theme"><div id="_html" class="markdown-body">
+		<script>
+		let folderIndex = 3;
+		let urlParts = window.location.href.split('/');
+		let cssPath;
+		let currentUrl = urlParts[0];
+		let loadMisses = 0;
+		function setCssPath(src){
+			src = src.replace('markdown8.css','');
+			cssPath = src;
+
+			const styleChooser = document.getElementById('styleChooser');
+			styleChooser.style.display = 'block';
+
+			const styleLoader = document.getElementById('styleLoader');
+			styleLoader.style.display = 'none';
+
+			var sel = document.getElementById('style_select').value = 'markdown8.css';
+			changeSheet('markdown8.css');
+		}
+		function handleLoadMiss(src){
+			loadMisses++;
+			if(loadMisses >= urlParts.length){
+				const styleLoaderError = document.getElementById('styleLoadError');
+				styleLoaderError.style.display = 'block';				
+			}
+		}
+
+		while(folderIndex<urlParts.length){
+			currentUrl +='/'+ urlParts[folderIndex];
+			let el=document.createElement('script');
+			el.id="sheet"+folderIndex;
+			el.src=currentUrl+'/themes/markdown8.css';
+			el.onload=function(){if(el.onload)setCssPath(this.src)}
+			el.onerror=function(){if(el.onerror)handleLoadMiss(this.src)}
+			document.body.appendChild(el);
+			folderIndex++;
+		}
+
+		function handleStyleSelectChange(selectObject){
+			 changeSheet(selectObject.value)
+		}
+		function changeSheet(sheetName){
+			[...document.getElementsByTagName("link")].forEach((rel) => {
+				rel.setAttribute("href", cssPath+'/'+sheetName);  
+			});
+		}
+		</script>
+
+		<div style="float:right" id="styleLoader">
+			<b>Finding Styles. Please Wait</b>
+		</div>
+		<div style="float:right; display:none" id="styleLoadError">
+			<b>Styles could not be found. Please ensure 'themes' folder exists in your documentation folder root.</b>
+		</div>		
+		<div style="float:right; display:none" id="styleChooser">
+			<label for="style_select"> Select Style </label>
+			<select onchange=handleStyleSelectChange(this) id="style_select">
+				<option value="foghorn.css">foghorn</option><option value="ghostwriter.css">ghostwriter</option><option value="github-dark.css">github-dark</option><option value="github.css">github</option><option value="godspeed.css">godspeed</option><option value="markdown-alt.css">markdown-alt</option><option value="markdown.css">markdown</option><option value="markdown5.css">markdown5</option><option value="markdown6.css">markdown6</option><option value="markdown7.css">markdown7</option><option value="markdown8.css">markdown8</option><option value="markdown9.css">markdown9</option><option value="markedapp-byword.css">markedapp-byword</option><option value="new-modern.css">new-modern</option><option value="radar.css">radar</option><option value="screen.css">screen</option><option value="solarized-dark.css">solarized-dark</option><option value="solarized-light.css">solarized-light</option><option value="torpedo.css">torpedo</option><option value="vostok.css">vostok</option>
+			</select>
+		</div>	
+	
+<h1 id="attendanceutilities-class">AttendanceUtilities Class</h1>
+<p>shared utilities used by features in the attendance tracking business unit. Includes functions for creating test data, getting daily rosters for businesses,<br>performing checkin/checkout operations and more.<br>NOTE: Currenly set to without sharing as the profile for the community user does not have full access to the Enrollment__c records that are required to operate this class.</p>
+<p><strong>Name</strong> </p>
+<p>AttendanceUtilities</p>
+<p><strong>Demo One</strong> </p>
+<pre><code class="lang-apex">   //Generate test check in data by creating a new business license, associated accounts, contacts, and attendance__c records
+
+   map<string,list<sObject>> testData = AttendanceUtilities.generateTestAttendanceData(null, 25, 1);
+   BusinessLicense thisLicense = testData.get(&#39;BusinessLicense&#39;)[0];
+
+   //find all the enrollees in our business licence
+   list<AttendanceUtilities.EnrollmentWrapper> enrollees = AttendanceUtilities.getAllLicenseEnrollees(thisLicense.Id);
+
+   //get an attendance roster that will contain a placeholder attendance record for every enrollee
+   AttendanceUtilities.RosterWrapper roster = AttendanceUtilities.getAttendanceRoster(thisLicense.Id, Date.today());
+
+   //set each of our attendees to being checked in
+   for(AttendanceUtilities.AttendeeWrapper thisAttendee : roster.attendees){
+       thisAttendee.checkedIn = true;
+   }
+
+   //update our attendance records
+   list<AttendanceUtilities.AttendeeWrapper> checkInResults = AttendanceUtilities.setCheckedInStatus(roster.attendees);
+
+   system.debug(JSON.serializePretty(checkInResults));
+</code></pre>
+<p><strong>Demo Two</strong> </p>
+<pre><code class="lang-apex">   //Generate Test Data for All Business Licenses that don&#39;t have any enrollments
+
+   list<BusinessLicense> bl = [SELECT Id, Name, (Select Id from Enrollments__r) from BusinessLicense where id in (Select Business_License__c From Enrollment__c)];
+
+   for(BusinessLicense thisBl : bl){
+       system.debug(&#39;\n\n\n------- &#39; + thisBl.Name + &#39; Has &#39; + thisBl.Enrollments__r.size() + &#39; Enrollments!&#39;);
+       if(thisBl.Enrollments__r.isEmpty()){
+           AttendanceUtilities.generateTestAttendanceData(thisBl.Id, 25, 1);
+       }
+   }
+</code></pre>
+<p><strong>Group</strong> AttendanceRostering</p>
+<p><strong>Author</strong> Slalom</p>
+<p><strong>Date</strong> 1/17/2024</p>
+<h2 id="fields">Fields</h2>
+<h3 id="contact_program_participation"><code>CONTACT_PROGRAM_PARTICIPATION</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static CONTACT_PROGRAM_PARTICIPATION
+</code></pre>
+<h4 id="type">Type</h4>
+<p>string</p>
+<hr>
+<h3 id="child_contact_record_type"><code>CHILD_CONTACT_RECORD_TYPE</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static CHILD_CONTACT_RECORD_TYPE
+</code></pre>
+<h4 id="type">Type</h4>
+<p>string</p>
+<h2 id="methods">Methods</h2>
+<h3 id="generatetestattendancedata-businesslicenseid-numaccounts-numcontactsperaccount-"><code>generateTestAttendanceData(businessLicenseId, numAccounts, numContactsPerAccount)</code></h3>
+<p>Creates a &#x27;testing harness&#x27; for the attendance tracking functionality. Creates a businessLicense (if the businessLicenseId is passed in as null),<br>accounts, contacts, enrollments, and attendance records.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static map<string,list<sObject>> generateTestAttendanceData(id businessLicenseId, integer numAccounts, integer numContactsPerAccount)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>id</td>
+<td>Id of the BusinessLicenseId record to attach enrollments to. Leave as null to automatically generate a new businessLicense</td>
+</tr>
+<tr>
+<td>numAccounts</td>
+<td>integer</td>
+<td>Number of test accounts to create</td>
+</tr>
+<tr>
+<td>numContactsPerAccount</td>
+<td>integer</td>
+<td>Number of contacts to create per account</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>map<string,list<sObject>></strong></p>
+<p>a map containing keys for BusinessLicense,Accounts,Contacts, and Enrollment which will contain lists of the created records</p>
+<hr>
+<h3 id="enablecommunityusers-contactids-portalname-"><code>enableCommunityUsers(contactIds, portalName)</code></h3>
+<p><code>FUTURE</code></p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static void enableCommunityUsers(Set<Id> contactIds, String portalName)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>contactIds</td>
+<td>Set<Id></td>
+<td></td>
+</tr>
+<tr>
+<td>portalName</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>void</strong></p>
+<hr>
+<h3 id="getallenrolleesforlicense-businesslicenseid-startdate-enddate-"><code>getAllEnrolleesForLicense(businessLicenseId, startDate, endDate)</code></h3>
+<p>Generates a mock importable attendance CSV file that can be used for testing/demos. Generates a random number of check in events between the min and<br>max provided for each child with an active enrollment in the given business license id.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<EnrollmentWrapper> getAllEnrolleesForLicense(id businessLicenseId, Date startDate, Date endDate)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>id</td>
+<td></td>
+</tr>
+<tr>
+<td>startDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>endDate</td>
+<td>Date</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<EnrollmentWrapper></strong></p>
+<hr>
+<h3 id="getallenrolleesforlicense-businesslicenseid-startdate-enddate-householdid-"><code>getAllEnrolleesForLicense(businessLicenseId, startDate, endDate, householdId)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<EnrollmentWrapper> getAllEnrolleesForLicense(id businessLicenseId, Date startDate, Date endDate, id householdId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>id</td>
+<td></td>
+</tr>
+<tr>
+<td>startDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>endDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>householdId</td>
+<td>id</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<EnrollmentWrapper></strong></p>
+<hr>
+<h3 id="getattendanceroster-businesslicenseid-rosterdate-"><code>getAttendanceRoster(businessLicenseId, rosterDate)</code></h3>
+<p>Gets all existing Attendance records and temporary placeholders for those that do not exist which may then be upserted</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static RosterWrapper getAttendanceRoster(Id businessLicenseId, Date rosterDate)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td>Id of the business license to find all enrollments for</td>
+</tr>
+<tr>
+<td>rosterDate</td>
+<td>Date</td>
+<td>the date for which to find the attendance roster</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>RosterWrapper</strong></p>
+<p>A list of EnrollmentWrappers that contain the enrollment__c records</p>
+<hr>
+<h3 id="getattendanceroster-businesslicenseid-rosterdate-householdid-"><code>getAttendanceRoster(businessLicenseId, rosterDate, householdId)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static RosterWrapper getAttendanceRoster(Id businessLicenseId, Date rosterDate, Id householdId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td></td>
+</tr>
+<tr>
+<td>rosterDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>householdId</td>
+<td>Id</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>RosterWrapper</strong></p>
+<hr>
+<h3 id="getparentcontactsbyaccount-businesslicenseid-"><code>getParentContactsByAccount(businessLicenseId)</code></h3>
+<p><code>AURAENABLED</code></p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Map<Id,List<Contact>> getParentContactsByAccount(String businessLicenseId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Map<Id,List<Contact>></strong></p>
+<hr>
+<h3 id="getbusinesslicenseintegration-businesslicenseid-fordate-"><code>getBusinessLicenseIntegration(businessLicenseId, forDate)</code></h3>
+<p>Retrieves a <code>Business_License_Integration_Tracker__c</code> record based on the provided business license ID and a specified date.<br>This method only returns a <code>Business_License_Integration_Tracker__c</code> record if there is at least one related<br> <code>BL_Integration_Tracker_History__c</code> record meeting the specified date criteria. </p>
+<p>This function performs a SOQL query to obtain details of a <code>Business_License_Integration_Tracker__c</code> record<br>along with its related <code>BL_Integration_Tracker_History__c</code> records. The retrieved record will include: </p>
+<ul>
+<li>Name </li>
+<li>Last_Integration_Time__c </li>
+<li>Start_Date__c </li>
+<li>Vendor_Integration__c<br>Additionally, the query returns related <code>BL_Integration_Tracker_History__c</code> records that have a <code>Start_Date__c</code><br>less than or equal to the given date ( <code>forDate</code> ) and either: </li>
+<li>An <code>End_Date__c</code> greater than or equal to <code>forDate</code> , or </li>
+<li>A null <code>End_Date__c</code> . </li>
+</ul>
+<p>Only <code>Business_License_Integration_Tracker__c</code> records that have at least one matching <code>BL_Integration_Tracker_History__c</code><br>record as per the date criteria will be returned. If no record meets the criteria, an empty <code>Business_License_Integration_Tracker__c</code><br>object is returned.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Business_License_Integration_Tracker__c getBusinessLicenseIntegration(Id businessLicenseId, date forDate)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td>The unique identifier ( <code>Id</code> ) of the <code>Business_License__c</code> to retrieve the associated </td>
+</tr>
+</tbody>
+</table>
+<p> <code>Business_License_Integration_Tracker__c</code> record. |<br>| forDate | date | The date ( <code>Date</code> ) against which related <code>BL_Integration_Tracker_History__c</code> records are filtered.<br>Only history records with <code>Start_Date__c</code> on or before this date and with <code>End_Date__c</code><br>on or after this date (or null) will be included. |</p>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Business_License_Integration_Tracker__c</strong></p>
+<p>A ,[object Object], record with its related ,[object Object], records,[object Object],        if one or more history records match the date conditions. Returns an empty ,[object Object],[object Object],        object if no records meet the criteria.</p>
+<hr>
+<h3 id="setcheckedinstatus-attendancedata-"><code>setCheckedInStatus(attendanceData)</code></h3>
+<p>Updates the Attendance__c record of an attendeeWrapper. If the attendeeWrapper.checkedIn flag is set to true the First_Check_In__c (Datetime), Is_Checked_In__c (Boolean),<br>and Checked_In_By__c (User Lookup) will be populated. If not, the Last_Checkout__c, Is_Checked_Out__c and Checked_Out_By__c fields will be set. The DML operation on the attendance record<br>is an upsert so it can handle new or existing attendance__c records.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<AttendeeWrapper> setCheckedInStatus(list<AttendanceUtilities.AttendeeWrapper> attendanceData)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attendanceData</td>
+<td>list<AttendanceUtilities.AttendeeWrapper></td>
+<td>list of AttendanceUtilities.AttendeeWrapper records that contain the checkedIn property set to true or false.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<AttendeeWrapper></strong></p>
+<p>a list of AttendeeWrapper objects that contain the updated status</p>
+<hr>
+<h3 id="generateattendancerecords-businesslicenseid-effectivedate-allornothingdml-"><code>generateAttendanceRecords(businessLicenseId, effectiveDate, allOrNothingDML)</code></h3>
+<p>Creates container Attendance__c records for all the valid enrollments in a given businessLicense Id for a given date.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<Attendance__c> generateAttendanceRecords(Id businessLicenseId, Date effectiveDate, boolean allOrNothingDML)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td>The Id of the business license to create attendance records for</td>
+</tr>
+<tr>
+<td>effectiveDate</td>
+<td>Date</td>
+<td>The date to create the attendance records for</td>
+</tr>
+<tr>
+<td>allOrNothingDML</td>
+<td>boolean</td>
+<td>Should the DML operation to create the attendance__c records be all or nothing?</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<Attendance__c></strong></p>
+<p>list of created Attendance__c records</p>
+<hr>
+<h3 id="generateattendancerecords-businesslicenseid-effectivedate-allornothingdml-householdid-"><code>generateAttendanceRecords(businessLicenseId, effectiveDate, allOrNothingDML, householdId)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<Attendance__c> generateAttendanceRecords(Id businessLicenseId, Date effectiveDate, boolean allOrNothingDML, id householdId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td></td>
+</tr>
+<tr>
+<td>effectiveDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>allOrNothingDML</td>
+<td>boolean</td>
+<td></td>
+</tr>
+<tr>
+<td>householdId</td>
+<td>id</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<Attendance__c></strong></p>
+<hr>
+<h3 id="getattendancetrackingdata-attendancerecordid-"><code>getAttendanceTrackingData(attendanceRecordId)</code></h3>
+<p>Gets all the attendance_tracking__c records for a given attendance__c record id in a container object that also contains information about the<br>attendance__c record and the related contact__ record</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static AttendanceTrackingWrapperContainer getAttendanceTrackingData(id attendanceRecordId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attendanceRecordId</td>
+<td>id</td>
+<td>Id of parent attendance__c record to fetch attendance_tracking__c records for</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>AttendanceTrackingWrapperContainer</strong></p>
+<p>AttendanceTrackingWrapperContainer a container wrapper object containing information about the attendance__c record, contact and tracking__c records.,[object Object],properties come back defined but empty if no matching attendance__c is found.</p>
+<hr>
+<h3 id="shareattendanceforbusinesslicenseroles-blroleids-"><code>shareAttendanceForBusinessLicenseRoles(blRoleIds)</code></h3>
+<p><code>FUTURE</code></p>
+<p>Gets all users related to a given business license record through BusinessLicenseRole records. The  BusinessLicenseRole must be set to isActive__c &#x3D; true</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static void shareAttendanceForBusinessLicenseRoles(set<Id> blRoleIds)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>blRoleIds</td>
+<td>set<Id></td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>void</strong></p>
+<p>map of business license it to all users related to the business license via a BusinessLicenseRole junction record that is active.</p>
+<hr>
+<h3 id="shareattendanceforbusinesslicenseroles-blroles-"><code>shareAttendanceForBusinessLicenseRoles(blRoles)</code></h3>
+<p>Creates Attendance__Share records to share Attendance__c records related to a BusinessLicense with the Users in the given Business_License_Role__c records.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<AttendanceUtilities.ShareRequestResult> shareAttendanceForBusinessLicenseRoles(map<Id,Business_License_Role__c> blRoles)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>blRoles</td>
+<td>map<Id,Business_License_Role__c></td>
+<td>A map of Business_License_Role__c record ids to evaluate and grant access to Attendance__c records for. The records in the map must have the User__c, Attendance__c, and Provider_Hub_Access_Level__c field populated.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<AttendanceUtilities.ShareRequestResult></strong></p>
+<p>A list of sharing request results that contain the results of the sharing operation.</p>
+<hr>
+<h3 id="getaccesslevelfrombusinesslicenserole-thisrole-"><code>getAccessLevelFromBusinessLicenseRole(thisRole)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static string getAccessLevelFromBusinessLicenseRole(Business_License_Role__c thisRole)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>thisRole</td>
+<td>Business_License_Role__c</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>string</strong></p>
+<hr>
+<h3 id="setattendancetrackingstatus-attendancedata-allornothingdml-"><code>setAttendanceTrackingStatus(attendanceData, allOrNothingDML)</code></h3>
+<p>Creates Apex sharing records for the given shareTargets with the given accessLevel to all the records in the list of record Ids provided. Can create<br>multiple types of shares for different objects in one invocation.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">private static list<AttendanceTrackingResultWrapper> setAttendanceTrackingStatus(list<AttendanceUtilities.AttendeeWrapper> attendanceData, boolean allOrNothingDML)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attendanceData</td>
+<td>list<AttendanceUtilities.AttendeeWrapper></td>
+<td></td>
+</tr>
+<tr>
+<td>allOrNothingDML</td>
+<td>boolean</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<AttendanceTrackingResultWrapper></strong></p>
+<p>a list of the results of creation of the share records. Contains information about the success of the share creation, error messages, and related record info.</p>
+<hr>
+<h3 id="createbusinesslicenseroles-businesslicenseid-userids-"><code>createBusinessLicenseRoles(businessLicenseId, userIds)</code></h3>
+<p>Creates Business_License_Role__c for the given BusinessLicense for the given userIds</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static list<Business_License_Role__c> createBusinessLicenseRoles(id businessLicenseId, set<Id> userIds)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>id</td>
+<td>Id of businessLicense record to create roles for.</td>
+</tr>
+<tr>
+<td>userIds</td>
+<td>set<Id></td>
+<td>set of ids to make roles for.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<Business_License_Role__c></strong></p>
+<p>list of created businessLicenseRole</p>
+<hr>
+<h3 id="getattendeewrappersfromrecords-attendancerecordids-"><code>getAttendeeWrappersFromRecords(attendanceRecordIds)</code></h3>
+<p>gets a list of attendeeWrapper objects for a given list of attendance__c record ids.</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">private static list<AttendeeWrapper> getAttendeeWrappersFromRecords(list<Id> attendanceRecordIds)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>attendanceRecordIds</td>
+<td>list<Id></td>
+<td>list of ids of attendance__c record ids for which to generate AttendeeWrapper records</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>list<AttendeeWrapper></strong></p>
+<p>list of AttendeeWrapper objects that contain all information about attendance and related tracking records needed to build tables/etc</p>
+<hr>
+<h3 id="handleerror-e-"><code>handleError(e)</code></h3>
+<p>generic error handler. Logs the error to the console. May later be hooked up to org wide error handler to log via platform event</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static void handleError(Exception e)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>e</td>
+<td>Exception</td>
+<td>exception to log</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>void</strong></p>
+<p>void</p>
+<hr>
+<h3 id="generatepin-contactid-"><code>generatePin(contactId)</code></h3>
+<p>this method is to generate a PIN for a Parent when triggered from the experience site</p>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static void generatePin(Id contactId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>contactId</td>
+<td>Id</td>
+<td>contactToUpdate</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>void</strong></p>
+<p>void</p>
+<hr>
+<h3 id="findduplicateschildren-childrecordsstring-businesslicenseid-"><code>findDuplicatesChildren(childRecordsString, businessLicenseId)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Object findDuplicatesChildren(String childRecordsString, String businessLicenseId)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>childRecordsString</td>
+<td>String</td>
+<td></td>
+</tr>
+<tr>
+<td>businessLicenseId</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Object</strong></p>
+<hr>
+<h3 id="findduplicatesconstituents-constituentsrecordsstring-businesslicenseid-constituenttype-"><code>findDuplicatesConstituents(constituentsRecordsString, businessLicenseId, constituentType)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Object findDuplicatesConstituents(String constituentsRecordsString, String businessLicenseId, String constituentType)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>constituentsRecordsString</td>
+<td>String</td>
+<td></td>
+</tr>
+<tr>
+<td>businessLicenseId</td>
+<td>String</td>
+<td></td>
+</tr>
+<tr>
+<td>constituentType</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Object</strong></p>
+<hr>
+<h3 id="updateexistingenrollment-childrecordsstring-businesslicenseid-duplicatesselectedstring-"><code>updateExistingEnrollment(childRecordsString, businessLicenseId, duplicatesSelectedString)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Object updateExistingEnrollment(String childRecordsString, String businessLicenseId, String duplicatesSelectedString)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>childRecordsString</td>
+<td>String</td>
+<td></td>
+</tr>
+<tr>
+<td>businessLicenseId</td>
+<td>String</td>
+<td></td>
+</tr>
+<tr>
+<td>duplicatesSelectedString</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Object</strong></p>
+<hr>
+<h3 id="updatemapvalueswithlist-maptoupdate-updatedlist-"><code>updateMapValuesWithList(mapToUpdate, updatedList)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static void updateMapValuesWithList(Map<String,SObject> mapToUpdate, List<SObject> updatedList)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mapToUpdate</td>
+<td>Map<String,SObject></td>
+<td></td>
+</tr>
+<tr>
+<td>updatedList</td>
+<td>List<SObject></td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>void</strong></p>
+<hr>
+<h3 id="emailaddressisvalid-email-"><code>emailAddressIsValid(email)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static Boolean emailAddressIsValid(String email)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>email</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>Boolean</strong></p>
+<hr>
+<h3 id="sanitizeinput-input-"><code>sanitizeInput(input)</code></h3>
+<h4 id="signature">Signature</h4>
+<pre><code class="lang-apex">public static String sanitizeInput(String input)
+</code></pre>
+<h4 id="parameters">Parameters</h4>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>input</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h4 id="return-type">Return Type</h4>
+<p><strong>String</strong></p>
+<h2 id="classes">Classes</h2>
+<h3 id="sharerequestresult-class">ShareRequestResult Class</h3>
+<p>Class for returning the results of a sharing record creation operation.</p>
+<h4 id="fields">Fields</h4>
+<h5 id="success"><code>success</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public success
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="sharerecord"><code>shareRecord</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public shareRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>sObject</p>
+<hr>
+<h5 id="message"><code>message</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public message
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="recordobjecttype"><code>recordObjectType</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public recordObjectType
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="sharedtotype"><code>sharedToType</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public sharedToType
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="sharedto"><code>sharedTo</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public sharedTo
+</code></pre>
+<h6 id="type">Type</h6>
+<p>object</p>
+<hr>
+<h5 id="record"><code>record</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public record
+</code></pre>
+<h6 id="type">Type</h6>
+<p>object</p>
+<hr>
+<h5 id="sharecreated"><code>shareCreated</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public shareCreated
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="invokedby"><code>invokedBy</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public invokedBy
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="runninguser"><code>runningUser</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public runningUser
+</code></pre>
+<h6 id="type">Type</h6>
+<p>user</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="sharerequestresult-saveresult-sharerecord-sharedto-record-runninguser-"><code>ShareRequestResult(saveResult, shareRecord, sharedTo, record, runningUser)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public ShareRequestResult(Database.SaveResult saveResult, sObject shareRecord, object sharedTo, object record, user runningUser)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>saveResult</td>
+<td>Database.SaveResult</td>
+<td></td>
+</tr>
+<tr>
+<td>shareRecord</td>
+<td>sObject</td>
+<td></td>
+</tr>
+<tr>
+<td>sharedTo</td>
+<td>object</td>
+<td></td>
+</tr>
+<tr>
+<td>record</td>
+<td>object</td>
+<td></td>
+</tr>
+<tr>
+<td>runningUser</td>
+<td>user</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rosterwrapper-class">RosterWrapper Class</h3>
+<p>Overall roster information that is returned to the attendance LWCs that contain the list of attendees, the applicable date, business license<br>information and other relevant data to rostering/attendance.</p>
+<h4 id="fields">Fields</h4>
+<h5 id="businesslicenseid"><code>businessLicenseId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public businessLicenseId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>id</p>
+<hr>
+<h5 id="businesslicensename"><code>businessLicenseName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public businessLicenseName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="businesslicenseprogramname"><code>businessLicenseProgramName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public businessLicenseProgramName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="rosterdate"><code>rosterDate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public rosterDate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>date</p>
+<hr>
+<h5 id="datelabel"><code>dateLabel</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dateLabel
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="numattendees"><code>numAttendees</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public numAttendees
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="numcheckedin"><code>numCheckedIn</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public numCheckedIn
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="numcheckedout"><code>numCheckedOut</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public numCheckedOut
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="datasourceisintegration"><code>dataSourceIsIntegration</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataSourceIsIntegration
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="dataintegrationsourcename"><code>dataIntegrationSourceName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataIntegrationSourceName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="businesslicenseintegrationtracker"><code>businessLicenseIntegrationTracker</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public businessLicenseIntegrationTracker
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Business_License_Integration_Tracker__c</p>
+<hr>
+<h5 id="dataintegrationlastupdate"><code>dataIntegrationLastUpdate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataIntegrationLastUpdate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>datetime</p>
+<hr>
+<h5 id="attendees"><code>attendees</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendees
+</code></pre>
+<h6 id="type">Type</h6>
+<p>list<AttendeeWrapper></p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="rosterwrapper-businesslicenseid-rosterdate-attendees-"><code>RosterWrapper(businessLicenseId, rosterDate, Attendees)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public RosterWrapper(Id businessLicenseId, Date rosterDate, list<AttendeeWrapper> Attendees)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>businessLicenseId</td>
+<td>Id</td>
+<td></td>
+</tr>
+<tr>
+<td>rosterDate</td>
+<td>Date</td>
+<td></td>
+</tr>
+<tr>
+<td>Attendees</td>
+<td>list<AttendeeWrapper></td>
+</tr>
+</tbody>
+</table>
+<h3 id="enrollmentwrapper-class">EnrollmentWrapper Class</h3>
+<p>Wrapper class for the Enrollment__c object. An enrollment connects a contact/student to a business.</p>
+<h4 id="fields">Fields</h4>
+<h5 id="record"><code>record</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public record
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Enrollment__c</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="enrollmentwrapper-thisenrollment-"><code>EnrollmentWrapper(thisEnrollment)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public EnrollmentWrapper(Enrollment__c thisEnrollment)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>thisEnrollment</td>
+<td>Enrollment__c</td>
+</tr>
+</tbody>
+</table>
+<h3 id="attendeewrapper-class">AttendeeWrapper Class</h3>
+<p>Wrapper class that contains information relevant to attendance tracking. It&#x27;s a combination of an Attendance__c and Contact object containing information<br>about the current check in status for that person for a given day.</p>
+<h4 id="fields">Fields</h4>
+<h5 id="uniqueidkey"><code>uniqueIdKey</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public uniqueIdKey
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="attendancerecord"><code>attendanceRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendanceRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Attendance__c</p>
+<hr>
+<h5 id="attendeerecord"><code>attendeeRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendeeRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Contact</p>
+<hr>
+<h5 id="isnew"><code>isNew</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public isNew
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="firstname"><code>firstName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public firstName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="lastname"><code>lastName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public lastName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="birthdate"><code>birthDate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public birthDate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>date</p>
+<hr>
+<h5 id="checkedin"><code>checkedIn</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedIn
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="checkedout"><code>checkedOut</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOut
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="checkedintime"><code>checkedInTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="checkedouttime"><code>checkedOutTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOutTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="checkedinby"><code>checkedInBy</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInBy
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="checkedoutby"><code>checkedOutBy</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOutBy
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="numopencheckins"><code>numOpenCheckIns</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public numOpenCheckIns
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="checkedinminutes"><code>checkedInMinutes</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInMinutes
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="totalcheckins"><code>totalCheckins</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public totalCheckins
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="operatingcontact"><code>operatingContact</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public operatingContact
+</code></pre>
+<h6 id="type">Type</h6>
+<p>id</p>
+<hr>
+<h5 id="attendancetrackingsaveresults"><code>attendanceTrackingSaveResults</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendanceTrackingSaveResults
+</code></pre>
+<h6 id="type">Type</h6>
+<p>list<AttendanceTrackingResultWrapper></p>
+<hr>
+<h5 id="parentswithemail"><code>parentsWithEmail</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public transient parentsWithEmail
+</code></pre>
+<h6 id="type">Type</h6>
+<p>list<Contact></p>
+<hr>
+<h5 id="hasparentwithemail"><code>hasParentWithEmail</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public hasParentWithEmail
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="updatedcheckintime"><code>updatedCheckInTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public updatedCheckInTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="updatedcheckouttime"><code>updatedCheckOutTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public updatedCheckOutTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="isopen"><code>isOpen</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public isOpen
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="attendeewrapper-thiscontact-thisattendance-"><code>AttendeeWrapper(thisContact, thisAttendance)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public AttendeeWrapper(Contact thisContact, Attendance__c thisAttendance)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>thisContact</td>
+<td>Contact</td>
+<td></td>
+</tr>
+<tr>
+<td>thisAttendance</td>
+<td>Attendance__c</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h5 id="attendeewrapper-"><code>AttendeeWrapper()</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public AttendeeWrapper()
+</code></pre>
+<h3 id="attendancetrackingwrappercontainer-class">AttendanceTrackingWrapperContainer Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="attendancerecord"><code>attendanceRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendanceRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Attendance__c</p>
+<hr>
+<h5 id="contact"><code>contact</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public contact
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Contact</p>
+<hr>
+<h5 id="tracking"><code>tracking</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public tracking
+</code></pre>
+<h6 id="type">Type</h6>
+<p>list<AttendanceTrackingWrapper></p>
+<hr>
+<h5 id="allowdelete"><code>allowDelete</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public allowDelete
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="allowupdate"><code>allowUpdate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public allowUpdate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<h3 id="attendancetrackingwrapper-class">AttendanceTrackingWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="attendancetrackingrecord"><code>attendanceTrackingRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public attendanceTrackingRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Attendance_Tracking__c</p>
+<hr>
+<h5 id="recordid"><code>recordId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public recordId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Id</p>
+<hr>
+<h5 id="name"><code>Name</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public Name
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="checkedin"><code>checkedIn</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedIn
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="checkedout"><code>checkedOut</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOut
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="checkedintime"><code>checkedInTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="checkedouttime"><code>checkedOutTime</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOutTime
+</code></pre>
+<h6 id="type">Type</h6>
+<p>dateTime</p>
+<hr>
+<h5 id="checkedinby"><code>checkedInBy</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInBy
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="checkedoutby"><code>checkedOutBy</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedOutBy
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="numopencheckins"><code>numOpenCheckIns</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public numOpenCheckIns
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="checkedinminutes"><code>checkedInMinutes</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public checkedInMinutes
+</code></pre>
+<h6 id="type">Type</h6>
+<p>integer</p>
+<hr>
+<h5 id="preventupdate"><code>preventUpdate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public preventUpdate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="preventdelete"><code>preventDelete</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public preventDelete
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="isnew"><code>isNew</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public isNew
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="datasourceisintegration"><code>dataSourceIsIntegration</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataSourceIsIntegration
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="dataintegrationsourcename"><code>dataIntegrationSourceName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataIntegrationSourceName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="dataintegrationsourceid"><code>dataIntegrationSourceId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public dataIntegrationSourceId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="attendancetrackingwrapper-trackingrecord-"><code>AttendanceTrackingWrapper(trackingRecord)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public AttendanceTrackingWrapper(Attendance_Tracking__c trackingRecord)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>trackingRecord</td>
+<td>Attendance_Tracking__c</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h5 id="attendancetrackingwrapper-"><code>AttendanceTrackingWrapper()</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public AttendanceTrackingWrapper()
+</code></pre>
+<h3 id="pinoperationresponse-class">PinOperationResponse Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="success"><code>success</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public success
+</code></pre>
+<h6 id="type">Type</h6>
+<p>boolean</p>
+<hr>
+<h5 id="message"><code>message</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public message
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="contact"><code>contact</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public contact
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Contact</p>
+<hr>
+<h5 id="enrollments"><code>enrollments</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public enrollments
+</code></pre>
+<h6 id="type">Type</h6>
+<p>list<AttendanceUtilities.EnrollmentWrapper></p>
+<hr>
+<h5 id="action"><code>action</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public action
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<hr>
+<h5 id="pintype"><code>pinType</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public pinType
+</code></pre>
+<h6 id="type">Type</h6>
+<p>string</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="pinoperationresponse-actionname-"><code>PinOperationResponse(actionName)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public PinOperationResponse(string actionName)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>actionName</td>
+<td>string</td>
+</tr>
+</tbody>
+</table>
+<h3 id="constituentinformationwrapper-class">ConstituentInformationWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="guardianid"><code>guardianId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public guardianId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="trustedid"><code>trustedId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public trustedId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="guardianlastname"><code>guardianLastName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public guardianLastName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="guardianfirstname"><code>guardianFirstName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public guardianFirstName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="trustedfirstname"><code>trustedFirstName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public trustedFirstName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="trustedlastname"><code>trustedLastName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public trustedLastName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="parentfullname"><code>ParentFullName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public ParentFullName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="trustedfullname"><code>TrustedFullName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public TrustedFullName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<h3 id="childinformationwrapper-class">ChildInformationWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="childid"><code>childId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childfirstname"><code>childFirstName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childFirstName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childlastname"><code>childLastName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childLastName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childdateofbirth"><code>childDateOfBirth</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childDateOfBirth
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childfullname"><code>ChildFullName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public ChildFullName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childstartdate"><code>childStartDate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childStartDate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childenddate"><code>childEndDate</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childEndDate
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="childuniqueid"><code>childUniqueId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public childUniqueId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="enrollmentid"><code>enrollmentId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public enrollmentId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<h3 id="duplicateentrywrapper-class">DuplicateEntryWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="name"><code>name</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public name
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="uniqueid"><code>uniqueId</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public uniqueId
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="duplicateentries"><code>duplicateEntries</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public duplicateEntries
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Map<String,DuplicateContactWrapper></p>
+<h3 id="duplicatecontactwrapper-class">DuplicateContactWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="id"><code>Id</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public Id
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="contactrecord"><code>contactRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public contactRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Contact</p>
+<hr>
+<h5 id="selected"><code>selected</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public selected
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Boolean</p>
+<hr>
+<h5 id="householdinformation"><code>householdInformation</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public householdInformation
+</code></pre>
+<h6 id="type">Type</h6>
+<p>List<HouseholdInformationWrapper></p>
+<hr>
+<h5 id="enrollmentexpired"><code>enrollmentExpired</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public enrollmentExpired
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Boolean</p>
+<hr>
+<h5 id="enrollmentpaused"><code>enrollmentPaused</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public enrollmentPaused
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Boolean</p>
+<h3 id="householdinformationwrapper-class">HouseholdInformationWrapper Class</h3>
+<h4 id="fields">Fields</h4>
+<h5 id="householdname"><code>householdName</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public householdName
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="householddetails"><code>householdDetails</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public householdDetails
+</code></pre>
+<h6 id="type">Type</h6>
+<p>List<Contact></p>
+<h3 id="attendancetrackingresultwrapper-class">AttendanceTrackingResultWrapper Class</h3>
+<h4 id="properties">Properties</h4>
+<h5 id="trackingrecord"><code>trackingRecord</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public trackingRecord
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Attendance_Tracking__c</p>
+<hr>
+<h5 id="issuccess"><code>isSuccess</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public isSuccess
+</code></pre>
+<h6 id="type">Type</h6>
+<p>Boolean</p>
+<hr>
+<h5 id="errormessage"><code>errorMessage</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public errorMessage
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<hr>
+<h5 id="friendlyerror"><code>friendlyError</code></h5>
+<p><code>AURAENABLED</code></p>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public friendlyError
+</code></pre>
+<h6 id="type">Type</h6>
+<p>String</p>
+<h4 id="constructors">Constructors</h4>
+<h5 id="attendancetrackingresultwrapper-trackingrecord-issuccess-errormessage-"><code>AttendanceTrackingResultWrapper(trackingRecord, isSuccess, errorMessage)</code></h5>
+<h6 id="signature">Signature</h6>
+<pre><code class="lang-apex">public AttendanceTrackingResultWrapper(Attendance_Tracking__c trackingRecord, Boolean isSuccess, String errorMessage)
+</code></pre>
+<h6 id="parameters">Parameters</h6>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>trackingRecord</td>
+<td>Attendance_Tracking__c</td>
+<td></td>
+</tr>
+<tr>
+<td>isSuccess</td>
+<td>Boolean</td>
+<td></td>
+</tr>
+<tr>
+<td>errorMessage</td>
+<td>String</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logicexception-class">LogicException Class</h3>
+<h3 id="applicationexception-class">ApplicationException Class</h3>
+<h3 id="dataexception-class">DataException Class</h3>
+</div></body>
+</html>

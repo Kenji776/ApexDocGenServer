@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>uploads\1737669801398_ff5pk3ibl3c\markdown\index.html</title>
+  <link rel="stylesheet" href="markdown8">
+</head>
+<body><link rel="stylesheet" type="text/css" href="markdown8.css" id="_theme"><div id="_html" class="markdown-body">
+		<script>
+		let folderIndex = 3;
+		let urlParts = window.location.href.split('/');
+		let cssPath;
+		let currentUrl = urlParts[0];
+		let loadMisses = 0;
+		function setCssPath(src){
+			src = src.replace('markdown8.css','');
+			cssPath = src;
+
+			const styleChooser = document.getElementById('styleChooser');
+			styleChooser.style.display = 'block';
+
+			const styleLoader = document.getElementById('styleLoader');
+			styleLoader.style.display = 'none';
+
+			var sel = document.getElementById('style_select').value = 'markdown8.css';
+			changeSheet('markdown8.css');
+		}
+		function handleLoadMiss(src){
+			loadMisses++;
+			if(loadMisses >= urlParts.length){
+				const styleLoaderError = document.getElementById('styleLoadError');
+				styleLoaderError.style.display = 'block';				
+			}
+		}
+
+		while(folderIndex<urlParts.length){
+			currentUrl +='/'+ urlParts[folderIndex];
+			let el=document.createElement('script');
+			el.id="sheet"+folderIndex;
+			el.src=currentUrl+'/themes/markdown8.css';
+			el.onload=function(){if(el.onload)setCssPath(this.src)}
+			el.onerror=function(){if(el.onerror)handleLoadMiss(this.src)}
+			document.body.appendChild(el);
+			folderIndex++;
+		}
+
+		function handleStyleSelectChange(selectObject){
+			 changeSheet(selectObject.value)
+		}
+		function changeSheet(sheetName){
+			[...document.getElementsByTagName("link")].forEach((rel) => {
+				rel.setAttribute("href", cssPath+'/'+sheetName);  
+			});
+		}
+		</script>
+
+		<div style="float:right" id="styleLoader">
+			<b>Finding Styles. Please Wait</b>
+		</div>
+		<div style="float:right; display:none" id="styleLoadError">
+			<b>Styles could not be found. Please ensure 'themes' folder exists in your documentation folder root.</b>
+		</div>		
+		<div style="float:right; display:none" id="styleChooser">
+			<label for="style_select"> Select Style </label>
+			<select onchange=handleStyleSelectChange(this) id="style_select">
+				<option value="foghorn.css">foghorn</option><option value="ghostwriter.css">ghostwriter</option><option value="github-dark.css">github-dark</option><option value="github.css">github</option><option value="godspeed.css">godspeed</option><option value="markdown-alt.css">markdown-alt</option><option value="markdown.css">markdown</option><option value="markdown5.css">markdown5</option><option value="markdown6.css">markdown6</option><option value="markdown7.css">markdown7</option><option value="markdown8.css">markdown8</option><option value="markdown9.css">markdown9</option><option value="markedapp-byword.css">markedapp-byword</option><option value="new-modern.css">new-modern</option><option value="radar.css">radar</option><option value="screen.css">screen</option><option value="solarized-dark.css">solarized-dark</option><option value="solarized-light.css">solarized-light</option><option value="torpedo.css">torpedo</option><option value="vostok.css">vostok</option>
+			</select>
+		</div>	
+	
+<h1 id="reference-guide">Reference Guide</h1>
+<h2 id="attendancerostering">AttendanceRostering</h2>
+<h3 id="attendanceutilities"><a href="attendancerostering\AttendanceUtilities.html">AttendanceUtilities</a></h3>
+<p>shared utilities used by features in the attendance tracking business unit. Includes functions for creating test data, getting daily rosters for businesses,<br>performing checkin/checkout operations and more.<br>NOTE: Currenly set to without sharing as the profile for the community user does not have full access to the Enrollment__c records that are required to operate this class.</p>
+</div></body>
+</html>
