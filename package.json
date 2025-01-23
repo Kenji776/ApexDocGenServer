@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "@cparra/apexdocs": "^3.7.2",
+    "7zip": "^0.0.6",
     "express": "^4.21.2",
     "fs-extra": "^11.3.0",
     "markdown": "^0.5.0",
