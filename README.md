@@ -35,7 +35,7 @@ This utility is a Node.js application that allows users to upload Salesforce Ape
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo-name
+   git clone https://github.com/Kenji776/ApexDocGenServer
 2. Install dependencies
     ```bash
     npm install
