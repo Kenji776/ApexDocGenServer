@@ -5,7 +5,8 @@ const fs = require("fs");
 const { processFiles } = require("./generateDocs");
 
 const app = express();
-const PORT = 3000;
+// Use the environment-provided port or default to 3000
+const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = path.join(__dirname, "uploads");
 const POLL_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 const EXPIRATION_DAYS = 10;
