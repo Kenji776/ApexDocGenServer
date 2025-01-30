@@ -1,5 +1,5 @@
 @echo off
-echo Setting up Apex ApexDocGenServer...
+echo Setting up ApexDocGenServer...
 
 :: Ensure Node.js is installed
 where node >nul 2>nul
@@ -23,5 +23,5 @@ timeout /t 3 /nobreak >nul
 echo Opening documentation...
 start start "" http://localhost:3500
 
-echo Setup complete. Documentation should be open in your default browser.
+echo Setup complete.
 pause

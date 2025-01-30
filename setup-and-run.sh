@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Setting up Apex ApexDocGenServer..."
+echo "Setting up ApexDocGenServer..."
 
 # Ensure Node.js is installed
 if ! command -v node &> /dev/null
@@ -30,7 +30,7 @@ else
     echo "Unsupported OS. Please open http://localhost:3500 manually."
 fi
 
-echo "Setup complete. Documentation should be open in your default browser."
+echo "Setup complete."
 
 # Prevent script from closing immediately (optional)
 read -p "Press Enter to exit..."

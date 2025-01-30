@@ -9,7 +9,6 @@ This utility is a Node.js application that allows users to upload Salesforce Ape
 - **File Validation**: Ensures uploaded files are valid `.cls` files with corresponding `.cls-meta.xml` files.
 - **Markdown and HTML Generation**: Converts Apex class files into Markdown and HTML documentation.
 - **Theme Support**: Generated HTML files include a style picker to switch between multiple themes.
-- **Credits**: Acknowledges the original creator of ApexDocs.
 
 ## How to Use
 
