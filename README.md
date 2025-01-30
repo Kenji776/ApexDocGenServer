@@ -54,40 +54,62 @@ To get the best output from the ApexDocs package, format your Apex code using th
 ### Example Apex Class with Documentation
 ```apex
 /**
- * @description This class contains utility methods for attendance processing.
- * @author John Doe
- * @date 2025-01-23
+ * @Name DemoApexClass
+ * @Author Kenji776
+ * @Date 2024-10-13
+ * @Description This is a sample Apex class demonstrating how to document methods using Javadoc-style annotations. 
+ * The class includes methods for inserting a Contact, querying Contacts, performing basic math, and updating a record.
+ * @Group DocumentationDemo
  */
-public class AttendanceUtilities {
+public with sharing class DemoApexClass {
 
     /**
-     * @description Calculates the total number of students present.
-     * @param attendanceList List<Boolean> - A list where each element represents whether a student is present.
-     * @return Integer - The total count of students present.
+     * @Description Inserts a new Contact record into the system.
+     * @Param firstName The first name of the Contact.
+     * @Param lastName The last name of the Contact.
+     * @Return The inserted Contact record.
      */
-    public static Integer calculatePresent(List<Boolean> attendanceList) {
-        Integer count = 0;
-        for (Boolean isPresent : attendanceList) {
-            if (isPresent) {
-                count++;
-            }
-        }
-        return count;
+    public static Contact createContact(String firstName, String lastName) {
+        Contact newContact = new Contact(
+            FirstName = firstName,
+            LastName = lastName
+        );
+        insert newContact;
+        return newContact;
     }
 
     /**
-     * @description Fetches the names of students who were absent.
-     * @param studentNames List<String> - A list of student names.
-     * @param attendanceList List<Boolean> - A list where each element represents whether a student is present.
-     * @return List<String> - A list of names of absent students.
+     * @Description Queries Contacts based on a last name.
+     * @Param lastName The last name to filter Contacts by.
+     * @Return A list of Contacts matching the specified last name.
      */
-    public static List<String> getAbsentStudents(List<String> studentNames, List<Boolean> attendanceList) {
-        List<String> absentees = new List<String>();
-        for (Integer i = 0; i < studentNames.size(); i++) {
-            if (!attendanceList[i]) {
-                absentees.add(studentNames[i]);
-            }
+    public static List<Contact> getContactsByLastName(String lastName) {
+        return [SELECT Id, FirstName, LastName FROM Contact WHERE LastName = :lastName];
+    }
+
+    /**
+     * @Description Performs a basic mathematical operation (addition).
+     * @Param a The first number.
+     * @Param b The second number.
+     * @Return The sum of the two numbers.
+     */
+    public static Integer addNumbers(Integer a, Integer b) {
+        return a + b;
+    }
+
+    /**
+     * @Description Updates the first name of a Contact.
+     * @Param contactId The ID of the Contact to update.
+     * @Param newFirstName The new first name to set.
+     * @Return Boolean indicating success or failure.
+     */
+    public static Boolean updateContactFirstName(Id contactId, String newFirstName) {
+        Contact c = [SELECT Id, FirstName FROM Contact WHERE Id = :contactId LIMIT 1];
+        if (c != null) {
+            c.FirstName = newFirstName;
+            update c;
+            return true;
         }
-        return absentees;
+        return false;
     }
 }
