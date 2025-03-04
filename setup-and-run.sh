@@ -14,6 +14,8 @@ echo "Installing dependencies..."
 npm install
 
 npm i -g @cparra/apexdocs
+npm i -g markdown-to-html
+npm i -g 7zip
 
 # Start the documentation generator in the background
 echo "Starting documentation generator..."
