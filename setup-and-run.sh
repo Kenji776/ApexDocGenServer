@@ -13,6 +13,8 @@ fi
 echo "Installing dependencies..."
 npm install
 
+npm i -g @cparra/apexdocs
+
 # Start the documentation generator in the background
 echo "Starting documentation generator..."
 nohup node server.js > server.log 2>&1 &

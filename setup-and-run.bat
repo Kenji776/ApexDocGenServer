@@ -12,6 +12,8 @@ if %errorlevel% neq 0 (
 echo Installing dependencies...
 call npm install
 
+npm i -g @cparra/apexdocs
+
 :: Start the documentation generator
 echo Starting documentation generator...
 start node server.js
