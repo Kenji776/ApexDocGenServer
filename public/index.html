@@ -117,7 +117,30 @@
             color: #45a049; /* Slightly darker green for hover/focus */
             text-decoration: underline; /* Add underline on hover for better visibility */
         }
+		.file-list-panel {
+			position: fixed;
+			top: 20px;
+			right: 20px;
+			background-color: #3a3d4e;
+			color: #ffffff;
+			padding: 15px;
+			border-radius: 8px;
+			width: 320px; /* slightly wider */
+			max-height: 80vh;
+			overflow-y: auto;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+			font-size: 0.9em;
+			white-space: nowrap;      /* no word wrap */
+			text-align: left;         /* left-align file names */
+		}
 
+		.file-list-panel h3 {
+			margin-top: 0;
+			margin-bottom: 10px;
+			font-size: 1em;
+			border-bottom: 1px solid #666;
+			padding-bottom: 5px;
+		}
     </style>
 </head>
 <body>
@@ -136,83 +159,202 @@ This utility simplifies the process of documenting Salesforce Apex classes and t
             <button type="submit">Upload</button>
         </form>
         <div class="output" id="output"></div>
+		<div id="fileList" class="file-list-panel"></div>
     </div>
 
-    <script>
-        const uploadForm = document.getElementById('uploadForm');
-        const fileInput = document.getElementById('fileInput');
-        const outputDiv = document.getElementById('output');
+<script>
+    const uploadForm = document.getElementById('uploadForm');
+    const fileInput = document.getElementById('fileInput');
+    const outputDiv = document.getElementById('output');
+    const fileListDiv = document.getElementById('fileList');
+    const uploaderDiv = document.querySelector('.uploader');
 
-        // Validate file extensions and pairing
-        function validateFiles(files) {
-            const clsFiles = new Set();
-            const metaFiles = new Set();
+    let allFilesMap = new Map(); // filename → File
 
-            for (const file of files) {
-                if (file.name.endsWith('.cls')) {
-                    clsFiles.add(file.name.replace('.cls', ''));
-                } else if (file.name.endsWith('.cls-meta.xml')) {
-                    metaFiles.add(file.name.replace('.cls-meta.xml', ''));
-                } else {
-                    return { valid: false, message: `Invalid file type: ${file.name}` };
-                }
+    function updateFileInput() {
+        const dataTransfer = new DataTransfer();
+        for (const file of allFilesMap.values()) {
+            dataTransfer.items.add(file);
+        }
+        fileInput.files = dataTransfer.files;
+        updateFileListUI();
+    }
+
+    function updateFileListUI() {
+        const fileStatusMap = getFileStatusMap();
+
+        let html = '<h3>Selected Files</h3><ul style="padding-left: 20px; list-style: none;">';
+        for (const [fileName, file] of allFilesMap.entries()) {
+            const hasPair = fileStatusMap.get(fileName)?.hasPair;
+            const icon = hasPair
+                ? '<span style="color: #4CAF50;">✔</span>'
+                : '<span style="color: #ff5555;">✖</span>';
+            html += `<li style="margin-bottom: 4px;">${icon} ${fileName}</li>`;
+        }
+        html += '</ul>';
+        fileListDiv.innerHTML = html;
+    }
+
+    function getFileStatusMap() {
+        const baseMap = new Map(); // base → Set(suffixes)
+        const fileStatus = new Map(); // full name → { hasPair: boolean }
+
+        for (const name of allFilesMap.keys()) {
+            let base, type;
+            if (name.endsWith('.cls')) {
+                base = name.slice(0, -4);
+                type = 'cls';
+            } else if (name.endsWith('.cls-meta.xml')) {
+                base = name.slice(0, -13);
+                type = 'cls-meta.xml';
+            } else if (name.endsWith('.trigger')) {
+                base = name.slice(0, -8);
+                type = 'trigger';
+            } else if (name.endsWith('.trigger-meta.xml')) {
+                base = name.slice(0, -17);
+                type = 'trigger-meta.xml';
+            } else {
+                continue;
             }
 
-            for (const cls of clsFiles) {
-                if (!metaFiles.has(cls)) {
-                    return { valid: false, message: `Missing metadata file for: ${cls}.cls` };
-                }
-            }
-
-            return { valid: true };
+            if (!baseMap.has(base)) baseMap.set(base, new Set());
+            baseMap.get(base).add(type);
         }
 
-        uploadForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
+        for (const name of allFilesMap.keys()) {
+            let base = null, expected = null;
 
-            const files = fileInput.files;
-            if (files.length === 0) {
-                outputDiv.innerHTML = "No files selected.";
-                return;
+            if (name.endsWith('.cls')) {
+                base = name.slice(0, -4);
+                expected = ['cls', 'cls-meta.xml'];
+            } else if (name.endsWith('.cls-meta.xml')) {
+                base = name.slice(0, -13);
+                expected = ['cls', 'cls-meta.xml'];
+            } else if (name.endsWith('.trigger')) {
+                base = name.slice(0, -8);
+                expected = ['trigger', 'trigger-meta.xml'];
+            } else if (name.endsWith('.trigger-meta.xml')) {
+                base = name.slice(0, -17);
+                expected = ['trigger', 'trigger-meta.xml'];
             }
 
-            const validation = validateFiles(files);
-            if (!validation.valid) {
-                outputDiv.innerHTML = `<span style="color: red;">Error: ${validation.message}</span>`;
-                return;
+            if (base && expected) {
+                const actual = baseMap.get(base) || new Set();
+                const hasPair = expected.every(type => actual.has(type));
+                fileStatus.set(name, { hasPair });
+            }
+        }
+
+        return fileStatus;
+    }
+
+    function validateFiles(fileMap) {
+        const expectedPairs = new Map(); // base → expected suffixes
+        const seen = new Map(); // base → actual suffixes
+
+        for (const name of fileMap.keys()) {
+            let base, type;
+
+            if (name.endsWith('.cls')) {
+                base = name.slice(0, -4);
+                type = 'cls';
+                expectedPairs.set(base, new Set(['cls', 'cls-meta.xml']));
+            } else if (name.endsWith('.cls-meta.xml')) {
+                base = name.slice(0, -13);
+                type = 'cls-meta.xml';
+            } else if (name.endsWith('.trigger')) {
+                base = name.slice(0, -8);
+                type = 'trigger';
+                expectedPairs.set(base, new Set(['trigger', 'trigger-meta.xml']));
+            } else if (name.endsWith('.trigger-meta.xml')) {
+                base = name.slice(0, -17);
+                type = 'trigger-meta.xml';
+            } else {
+                return { valid: false, message: `Invalid file type: ${name}` };
             }
 
-            const formData = new FormData(uploadForm);
+            if (!seen.has(base)) seen.set(base, new Set());
+            seen.get(base).add(type);
+        }
 
-            // Show "Uploading" spinner
-            outputDiv.innerHTML = '<div class="spinner"></div>Uploading<br/>(Be patient, it can take a while)...';
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!response.ok) {
-                    throw new Error('Upload failed');
+        for (const [base, expected] of expectedPairs.entries()) {
+            const actual = seen.get(base) || new Set();
+            for (const part of expected) {
+                if (!actual.has(part)) {
+                    return { valid: false, message: `Missing ${part} for: ${base}` };
                 }
-
-                // Show "Processing" spinner
-                outputDiv.innerHTML = '<div class="spinner"></div>Processing...';
-
-                const data = await response.json();
-
-                // Show styled download link
-                outputDiv.innerHTML = `
-                    <a href="${data.downloadLink}" class="download-link" download>
-                        Download Code Documentation
-                    </a>`;
-            } catch (error) {
-                console.error('Error:', error);
-                outputDiv.innerHTML = '<span style="color: red;">An error occurred during file upload.</span>';
             }
-        });
-    </script>
+        }
+
+        return { valid: true };
+    }
+
+    uploaderDiv.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploaderDiv.style.border = '2px dashed #4CAF50';
+    });
+
+    uploaderDiv.addEventListener('dragleave', () => {
+        uploaderDiv.style.border = 'none';
+    });
+
+    uploaderDiv.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploaderDiv.style.border = 'none';
+
+        const newFiles = Array.from(e.dataTransfer.files);
+        for (const file of newFiles) {
+            allFilesMap.set(file.name, file); // replaces if exists
+        }
+
+        updateFileInput();
+    });
+
+    uploadForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (allFilesMap.size === 0) {
+            outputDiv.innerHTML = "No files selected.";
+            return;
+        }
+
+        const validation = validateFiles(allFilesMap);
+        if (!validation.valid) {
+            outputDiv.innerHTML = `<span style="color: red;">Error: ${validation.message}</span>`;
+            return;
+        }
+
+        const formData = new FormData();
+        for (const file of allFilesMap.values()) {
+            formData.append('files', file);
+        }
+
+        outputDiv.innerHTML = '<div class="spinner"></div>Uploading<br/>(Be patient, it can take a while)...';
+
+        try {
+            const response = await fetch('/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            outputDiv.innerHTML = '<div class="spinner"></div>Processing...';
+            const data = await response.json();
+
+            outputDiv.innerHTML = `
+                <a href="${data.downloadLink}" class="download-link" download>
+                    Download Code Documentation
+                </a>`;
+        } catch (error) {
+            console.error('Error:', error);
+            outputDiv.innerHTML = '<span style="color: red;">An error occurred during file upload.</span>';
+        }
+    });
+</script>
+
+
+
 
     <footer>
         <p>
